@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>云次方的游戏</title>
+<link rel="preload" as="image" href="seats.jpg">
+<link rel="preload" as="image" href="theater.jpg">
+<link rel="preload" as="image" href="yunnu_bg.jpg">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden}
+body{font-family:Georgia,'Noto Serif SC','Source Han Serif SC',serif;background:#0a0806;color:#e8dcc8;font-size:16px;line-height:1.8;-webkit-font-smoothing:antialiased}
+#app{width:100%;height:100%;position:relative}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column}.screen.hidden{display:none}
+.scr-title{justify-content:center;align-items:center;cursor:pointer;background:radial-gradient(ellipse at center,#1a1510 0%,#0a0806 70%);padding:20px}
+.title-main{font-size:clamp(22px,5.5vw,44px);font-weight:700;letter-spacing:.3em;color:#c9a96e;text-shadow:0 0 40px rgba(201,169,110,.3);animation:titleIn 2s ease}
+.title-sub{margin-top:28px;font-size:14px;color:#3a3528;animation:pulse 2s infinite}
+@keyframes titleIn{from{opacity:0;letter-spacing:1em}to{opacity:1;letter-spacing:.3em}}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:.8}}
+/* ── dialogue ── */
+.scr-dlg{justify-content:center;align-items:center;padding:20px;cursor:pointer;user-select:none;background:radial-gradient(ellipse at center,#12100c 0%,#0a0806 80%)}
+.dlg-bg{position:absolute;inset:0;background-size:cover;background-repeat:no-repeat;opacity:0;transition:opacity 1.4s ease;z-index:0;pointer-events:none}
+.dlg-bg.show{opacity:1}
+.dlg-bg::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(10,8,6,.45) 0%,rgba(10,8,6,.88) 100%)}
+.dlg-wrap{max-width:660px;width:100%;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;position:relative;z-index:1}
+.dlg-wrap::-webkit-scrollbar{display:none}
+.dlg-content{animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.dlg-portrait{text-align:center;margin-bottom:20px}.dlg-portrait:empty{display:none}
+.dlg-portrait img{max-width:min(230px,56vw);max-height:32vh;border-radius:4px;object-fit:contain;border:1px solid rgba(201,169,110,.12);box-shadow:0 2px 24px rgba(0,0,0,.55),0 0 80px rgba(139,26,26,.08);animation:ptIn 1.2s ease}
+@keyframes ptIn{from{opacity:0;transform:scale(.85);filter:blur(4px)}to{opacity:1;transform:scale(1);filter:blur(0)}}
+p{margin-bottom:10px;font-size:clamp(15px,3.8vw,18px);line-height:2}
+.god{color:#c9a96e;font-style:italic}.narration{color:#8a8070}.plain{color:#d4c8b0}.dialogue{color:#d4c8b0}
+.speaker{color:#7eb8d0;font-weight:600}.music{color:#c9a96e}
+.dlg-hint{position:fixed;bottom:max(20px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);color:#3a3528;font-size:13px;animation:pulse 2s infinite;z-index:2}
+.choice-wrap{margin-top:24px;display:flex;flex-direction:column;gap:10px}
+.choice-btn{background:rgba(139,26,26,.1);border:1px solid rgba(139,26,26,.35);color:#e8dcc8;padding:14px 18px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:clamp(14px,3.5vw,16px);text-align:left;line-height:1.7;transition:all .2s;min-height:48px}
+.choice-btn:hover,.choice-btn:active{background:rgba(139,26,26,.25);border-color:#8b1a1a}
+.reward-line{color:#5a8b5a;font-size:14px;margin-top:8px}
+/* ── draw ── */
+.scr-draw{justify-content:center;align-items:center;background:radial-gradient(ellipse at center,#1a1510 0%,#0a0806 80%);padding:20px}
+.draw-bg-img{position:absolute;inset:0;background:url(yunnu_bg.jpg) center/cover no-repeat;opacity:.22;pointer-events:none}
+.draw-bg-img::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(10,8,6,.25) 0%,rgba(10,8,6,.92) 100%)}
+.draw-scene{display:flex;flex-direction:column;align-items:center;gap:24px;max-width:520px;text-align:center;position:relative;z-index:1}
+.draw-btn{padding:16px 48px;background:rgba(201,169,110,.12);border:2px solid #c9a96e;color:#c9a96e;cursor:pointer;border-radius:8px;font-family:inherit;font-size:20px;font-weight:700;letter-spacing:6px;transition:all .3s;animation:pulse 2s infinite;min-height:56px}
+.draw-btn:hover,.draw-btn:active{background:rgba(201,169,110,.25);transform:scale(1.05)}
+.card-reveal{display:flex;flex-direction:column;align-items:center;gap:16px;animation:cardIn .8s ease}
+@keyframes cardIn{from{opacity:0;transform:scale(.4) rotateY(90deg)}to{opacity:1;transform:scale(1) rotateY(0)}}
+.card-box{width:min(340px,88vw);height:130px;border:2px solid #c9a96e;border-radius:6px;background:linear-gradient(135deg,#1e1a14,#2a2520);display:flex;flex-direction:row;align-items:stretch;box-shadow:0 0 60px rgba(201,169,110,.25);overflow:hidden}
+.card-main{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;padding:16px 20px}
+.card-perf{width:0;border-right:2px dashed rgba(201,169,110,.25);margin:8px 0}
+.card-stub{width:46px;display:flex;justify-content:center;align-items:center;writing-mode:vertical-rl;font-size:11px;color:#5a5040;letter-spacing:4px;background:rgba(201,169,110,.03)}
+.card-type{font-size:28px;font-weight:700;color:#c9a96e;letter-spacing:8px}
+.card-label{font-size:12px;color:#8a8070;margin-top:4px}
+.card-hint{color:#3a3528;font-size:13px;animation:pulse 2s infinite;margin-top:28px}
+.draw-desc{font-size:clamp(14px,3.5vw,17px);line-height:2;color:#8a8070}
+/* ── map ── */
+.scr-map{background:#0a0806}
+.map-hdr{padding:10px 12px;background:#13110e;border-bottom:1px solid #2a2520;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;font-size:12px;z-index:1}
+.map-day{font-size:clamp(14px,3.5vw,16px);font-weight:700;color:#c9a96e}
+.ap-bar{display:flex;gap:4px;align-items:center;color:#8a8070;font-size:12px}
+.ap-dot{width:10px;height:10px;border-radius:50%;border:1.5px solid #c9a96e;display:inline-block;margin-left:3px}.ap-dot.on{background:#c9a96e}
+.ticket-badge{padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;border:1px solid;white-space:nowrap}
+.tk-纵欲{color:#b08ad4;border-color:#8a6ab0}.tk-杀戮{color:#d47070;border-color:#b04a4a}.tk-征服{color:#70a0d4;border-color:#4a7ab0}
+.map-area{flex:1;position:relative;overflow:hidden;min-height:200px}
+.map-loc{position:absolute;padding:8px 12px;background:rgba(30,26,20,.92);border:1px solid #3a3528;color:#c0b8a0;cursor:pointer;border-radius:8px;font-family:inherit;font-size:11px;font-weight:600;transition:all .15s;text-align:center;white-space:nowrap;transform:translate(-50%,-50%);z-index:1;min-width:60px;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.map-loc:active:not(.off){background:rgba(139,26,26,.15);border-color:#8b1a1a;color:#e8dcc8}
+.map-loc.ritual{border-color:#c9a96e;color:#c9a96e}.map-loc.off{opacity:.3;cursor:not-allowed;pointer-events:none}
+.loc-icon{display:block;font-size:16px;margin-bottom:1px}.loc-cost{font-size:9px;color:#5a5040;margin-top:1px}
+.map-ftr{padding:8px 12px;background:#13110e;border-top:1px solid #2a2520;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;z-index:1;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+.stats-row{display:flex;gap:6px;flex-wrap:wrap;font-size:10px;color:#6a6050;line-height:1.5}.sv{color:#c0b8a0;font-weight:600}
+.btn-next{padding:10px 20px;background:#2a2520;border:1px solid #3a3528;color:#c9a96e;cursor:pointer;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;transition:all .15s;min-height:44px}.btn-next:active{background:#3a3528}
+/* ── confirm ── */
+.confirm-mask{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;justify-content:center;align-items:center;padding:20px;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.confirm-box{background:#1a1714;border:1px solid #3a3528;border-radius:12px;max-width:380px;width:100%;padding:24px 20px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+.confirm-title{font-size:18px;font-weight:700;color:#c9a96e;margin-bottom:12px}
+.confirm-desc{color:#8a8070;font-size:14px;line-height:1.8;margin-bottom:16px}
+.confirm-info{border-top:1px solid #2a2520;border-bottom:1px solid #2a2520;padding:12px 0;margin-bottom:16px;font-size:13px;display:flex;flex-direction:column;gap:6px}
+.ci-row{display:flex;justify-content:space-between;align-items:center}.ci-label{color:#6a6050}.ci-val{color:#c0b8a0;font-weight:600}.ci-reward{color:#5a8b5a}
+.confirm-acts{display:flex;gap:10px;justify-content:flex-end}
+.cbtn{padding:10px 24px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;border:1px solid;min-height:44px;transition:all .15s}
+.cbtn-cancel{background:transparent;border-color:#3a3528;color:#6a6050}.cbtn-enter{background:rgba(139,26,26,.2);border-color:#8b1a1a;color:#e8dcc8}
+.cbtn-enter.gold{background:rgba(201,169,110,.15);border-color:#c9a96e;color:#c9a96e}
+/* ── interlude overlay ── */
+.int-overlay{position:absolute;top:0;left:0;right:0;height:60%;background:linear-gradient(to bottom,rgba(8,6,4,.97) 0%,rgba(8,6,4,.97) 80%,rgba(8,6,4,0) 100%);z-index:50;display:flex;justify-content:center;align-items:flex-start;padding:16px;cursor:pointer;user-select:none;transition:opacity .8s}
+.int-overlay.fade-out{opacity:0;pointer-events:none}
+.int-wrap{max-width:560px;width:100%;max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-top:10px}.int-wrap::-webkit-scrollbar{display:none}
+.int-content{animation:fadeUp .4s ease}
+.int-hint{position:absolute;bottom:12%;left:50%;transform:translateX(-50%);color:#3a3528;font-size:12px;animation:pulse 2s infinite}
+.int-choices{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+.int-choice-btn{background:rgba(139,26,26,.1);border:1px solid rgba(139,26,26,.35);color:#e8dcc8;padding:12px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:clamp(13px,3.2vw,14px);text-align:left;line-height:1.6;transition:all .15s;min-height:48px}
+/* ── toast ── */
+.toast{position:fixed;top:max(16px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:rgba(42,74,42,.92);border:1px solid #3a6a3a;color:#b8e8b8;padding:8px 20px;border-radius:20px;font-size:13px;z-index:200;animation:toastIn .3s ease,toastOut .4s ease 2s forwards;pointer-events:none;white-space:nowrap;max-width:90vw}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes toastOut{to{opacity:0}}
+/* ── end / misc ── */
+.endscreen{position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;flex-direction:column;justify-content:center;align-items:center;padding:40px 20px;z-index:300}
+.endscreen h2{color:#c9a96e;font-size:clamp(22px,5vw,28px);margin-bottom:16px;letter-spacing:.2em}
+.endscreen p{color:#8a8070;font-size:clamp(14px,3.5vw,16px);max-width:520px;text-align:center;line-height:2.2}
+#overlay:empty{display:none}#overlay{position:fixed;inset:0;z-index:300}
+.pg-mask{position:fixed;inset:0;background:#0a0806;z-index:400;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px}
+.pg-scroll{max-width:600px;width:100%;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#3a3528 transparent;margin-bottom:24px;padding:0 8px}
+.pg-scroll::-webkit-scrollbar{width:4px}.pg-scroll::-webkit-scrollbar-thumb{background:#3a3528;border-radius:2px}
+.pg-scroll h3{color:#c9a96e;font-size:16px;margin:18px 0 8px;letter-spacing:.1em}
+.pg-scroll p,.pg-scroll li{color:#8a8070;font-size:13px;line-height:1.9;margin-bottom:6px}
+.pg-scroll ul{padding-left:18px}
+.pg-title{color:#c9a96e;font-size:clamp(18px,4.5vw,24px);font-weight:700;margin-bottom:20px;letter-spacing:.15em;text-align:center}
+.pg-btn{padding:14px 40px;background:rgba(201,169,110,.1);border:2px solid #c9a96e;color:#c9a96e;cursor:pointer;border-radius:8px;font-family:inherit;font-size:16px;font-weight:600;letter-spacing:2px;transition:all .2s;min-height:52px;min-width:160px}
+.pg-btn:active{background:rgba(201,169,110,.25);transform:scale(.97)}
+.pg-btn.exit{border-color:#3a3528;color:#5a5040;background:transparent;margin-top:12px}
+.pg-center{display:flex;flex-direction:column;align-items:center;gap:16px}
+.pg-block{color:#5a5040;font-size:15px;text-align:center;line-height:2}
+@media(max-width:500px){.map-loc{padding:6px 8px;font-size:10px;min-width:52px;min-height:42px}.loc-icon{font-size:14px}}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="scr-title" class="screen scr-title hidden"><div class="title-main">云次方的游戏</div><div class="title-sub">— 点击开始 —</div></div>
+<div id="scr-dlg" class="screen scr-dlg hidden">
+  <div id="dlg-bg" class="dlg-bg"></div>
+  <div class="dlg-wrap">
+    <div id="dlg-portrait" class="dlg-portrait"></div>
+    <div id="dlg-body" class="dlg-content"></div>
+    <div id="dlg-choices" class="choice-wrap" style="display:none"></div>
+  </div>
+  <div id="dlg-hint" class="dlg-hint">▼ 点击继续</div>
+</div>
+<div id="scr-draw" class="screen scr-draw hidden">
+  <div class="draw-bg-img"></div>
+  <div id="draw-body" class="draw-scene"></div>
+</div>
+<div id="scr-map" class="screen scr-map hidden"><div id="map-hdr" class="map-hdr"></div><div id="map-area" class="map-area"></div><div id="map-ftr" class="map-ftr"></div><div id="int-layer"></div></div>
+</div>
+<div id="confirm-layer"></div>
+<div id="overlay"></div>
+<div id="pregame"></div>
+<script src="data.js"></script>
+<script>
+/* ══ PRE-GAME ══ */
+(function(){
+var pg=document.getElementById('pregame');
+pg.innerHTML='<div class="pg-mask" id="pg1">'+
+'<div class="pg-title">《云次方的游戏》<br>版权声明与免责协议</div>'+
+'<div class="pg-scroll">'+
+'<h3>1. 作品性质与二创说明</h3>'+
+'<p><b>作品定义：</b>本项目《云次方的游戏》是一款非营利性的粉丝同人互动叙事作品。</p>'+
+'<p><b>角色原型：</b>本作内容基于音乐剧演员嘎子大龙的公开资料进行虚构创作。作品中的所有情节均为戏剧化改编，不代表艺人真实立场或实际生活。</p>'+
+'<h3>2. 游戏架构与致敬说明</h3>'+
+'<p><b>核心机制归属：</b>本作品的核心玩法框架深受独立游戏《苏丹的游戏》（Sultan\'s Game）的启发。</p>'+
+'<p><b>架构相似性声明：</b>本作在设计上沿用了《苏丹的游戏》中关于"命运掌控与博弈"的戏剧逻辑，并保留了"杀戮、纵欲、征服"三个具有强烈戏剧张力的票据分类概念。本作者在此向《苏丹的游戏》原作者的原创设计表达诚挚的敬意。</p>'+
+'<h3>3. 权利归属与知识产权</h3>'+
+'<p><b>叙事与脚本权利：</b>本作品中所有的原创剧本、日常事件逻辑、以及基于编辑器产出的所有脚本内容，其著作权归属于本作品作者。</p>'+
+'<p><b>UI 与引擎设计：</b>本项目所采用的交互模型、UI 布局以及相关的 HTML5 引擎实现代码，由本作者自主设计与开发。</p>'+
+'<p><b>视觉资源：</b>作品中使用的背景图等美术素材，其权利归属于原照片作者或相关生成平台。本项目仅用于同人交流，不拥有这些素材的商业版权。</p>'+
+'<h3>4. 使用须知与法律免责</h3>'+
+'<ul><li>严禁将本作品用于任何商业用途。</li>'+
+'<li>请玩家在游玩过程中尊重相关艺人及原版游戏的创作者，严禁传播任何具有侮辱性或恶意偏见的内容。</li>'+
+'<li>因玩家个人传播或非法使用本作品而产生的任何法律纠纷，本作者不承担相关责任。</li></ul>'+
+'<p style="margin-top:16px;color:#5a5040;font-size:12px">发布日期：2025年4月11日<br>本协议最终解释权归《云次方的游戏》制作组所有。</p>'+
+'</div>'+
+'<button class="pg-btn" onclick="pgGo(2)">我知道了</button></div>';
+window.pgGo=function(n){
+if(n===2){document.getElementById('pg1').style.display='none';
+var d=document.createElement('div');d.className='pg-mask';d.id='pg2';
+d.innerHTML='<div class="pg-center"><button class="pg-btn" onclick="pgGo(3)">我是云女</button><button class="pg-btn exit" onclick="pgBlock()">我不是</button></div>';
+pg.appendChild(d);}
+else if(n===3){document.getElementById('pg2').style.display='none';
+var d=document.createElement('div');d.className='pg-mask';d.id='pg3';
+d.innerHTML='<div class="pg-center"><button class="pg-btn" onclick="pgDone()">云次方99</button><button class="pg-btn" onclick="pgDone()">在云中爱与歌</button></div>';
+pg.appendChild(d);}};
+window.pgBlock=function(){var e=document.getElementById('pg2');if(e)e.innerHTML='<div class="pg-block">抱歉，本游戏仅供云女游玩。</div>';};
+window.pgDone=function(){pg.style.display='none';document.getElementById('scr-title').classList.remove('hidden');};
+})();
+
+/* ══ PARSER ══ */
+function parse(t){var ls=t.split('\n'),ns=[],st='N',ct=null,cc=null;
+function fl(){if(st==='N'&&ct){ns.push(ct);ct=null;}if(st==='C'&&cc){ns.push(cc);cc=null;st='N';}}
+for(var i=0;i<ls.length;i++){var tr=ls[i].trim();
+if(!tr){if(st==='N'&&ct)ct.lines.push('');continue;}
+var p=tr.match(/^([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)\s*[:：]\s*([\s\S]*)/);
+if(p){var co=p[1],cx=p[2].trim();
+if(st==='N'){if(cx.indexOf('【选择】')>=0){fl();st='C';cc={type:'choice',options:[]};}else{fl();ct={type:'text',lines:cx?[cx]:[]};}}
+else if(st==='C'){
+if(co.indexOf('_reward')>=0){if(cc.options.length>0){var rw={},rc=cx.replace(/[{}：]/g,'');rc.split(/[,，\s]+/).forEach(function(pp){var m=pp.trim().match(/([\u4e00-\u9fff]+)\s*\+\s*(\d+)/);if(m){var mp={'人性':'humanity','神性':'divinity','张力':'tension','演技':'act','唱功':'sing','舞技':'dance','泪':'tears'};rw[mp[m[1]]||m[1]]=parseInt(m[2]);}});cc.options[cc.options.length-1].rewards=rw;}}
+else if(co.indexOf('_next')>=0){if(cc.options.length>0)cc.options[cc.options.length-1].next=cx.trim();}
+else if(co.match(/\.[A-Z]_/)){if(cc.options.length>0)cc.options[cc.options.length-1].resultLines.push(cx);}
+else if(co.match(/\.[A-Z]$/)){cc.options.push({label:cx,resultLines:[],rewards:{}});}
+else if(cx.indexOf('【选择】')>=0){fl();st='C';cc={type:'choice',options:[]};}
+else{fl();ct={type:'text',lines:cx?[cx]:[]};}}
+}else{if(st==='N'){if(!ct)ct={type:'text',lines:[]};ct.lines.push(tr);}
+else if(st==='C'&&cc&&cc.options.length>0){cc.options[cc.options.length-1].resultLines.push(tr);}}}
+fl();return ns;}
+
+/* ══ CONFIG ══ */
+var CARDS=[
+{type:'纵欲',ritual:'R0',name:'剧院魅影'},
+{type:'杀戮',ritual:'R1',name:'哈姆雷特'},
+{type:'纵欲',ritual:'R2',name:'罗密欧与朱丽叶'},
+{type:'征服',ritual:'R3',name:'变身怪医'},
+{type:'纵欲',ritual:'R4',name:'纳斯尔丁·阿凡提'},
+{type:'征服',ritual:'R5',name:'吉屋出租'}];
+var REWARDS={
+R0:{divinity:2,act:3},
+R1:{divinity:5,act:5,humanity:3},
+R2:{divinity:3,act:5,humanity:4,tension:5},
+R3:{divinity:4,act:6,humanity:3,tension:5},
+R4:{divinity:5,act:5,humanity:1,tension:3},
+R5:{divinity:5,act:3,humanity:2}};
+var LOCS=[
+{id:'grand',name:'大剧院',icon:'🏛️',type:'ritual',x:50,y:12,ap:2,desc:'戏剧之神的正式演出场地。'},
+{id:'campus',name:'北舞校园',icon:'🏫',type:'evt',x:20,y:35,ap:1,desc:'北京舞蹈学院，熟悉的练功房。'},
+{id:'restaurant',name:'小饭馆',icon:'🍜',type:'evt',x:80,y:35,ap:1,desc:'弥漫着孜然和辣椒香味的小饭馆。'},
+{id:'rehearsal',name:'排练厅',icon:'🎭',type:'evt',x:25,y:62,ap:1,desc:'空旷明亮的排练场地。'},
+{id:'backstage',name:'后台',icon:'🚪',type:'evt',x:55,y:50,ap:1,desc:'堆满旧道具的后台。'},
+{id:'home',name:'家',icon:'🏠',type:'evt',x:15,y:85,ap:1,desc:'临时住处。简单休息。'},
+{id:'shop',name:'舞美店',icon:'🛍️',type:'shop',x:85,y:85,ap:0,desc:'出售戏服道具的商店。'}];
+function getEvtKey(id){
+if(id==='campus')return G.done.EVT_E1?(G.done.EVT_E5?null:'EVT_E5'):'EVT_E1';
+if(id==='restaurant')return G.done.EVT_E2?null:'EVT_E2';
+if(id==='rehearsal')return'EVT_E3';
+if(id==='backstage')return G.done.EVT_E4?(G.done.EVT_E6?null:'EVT_E6'):'EVT_E4';
+if(id==='home')return'EVT_HOME';
+if(id==='shop')return'EVT_SHOP';return null;}
+function getEvtRew(id){
+if(id==='campus'&&!G.done.EVT_E1)return'人性+1~2 张力+1';
+if(id==='campus'&&!G.done.EVT_E5)return'人性+1 神性+4';
+if(id==='restaurant'&&!G.done.EVT_E2)return'人性+2 张力+1~2';
+if(id==='rehearsal')return'演/唱/跳 +1';
+if(id==='backstage'&&!G.done.EVT_E4)return'张力+2 人性+2 神性+1';
+if(id==='backstage'&&!G.done.EVT_E6)return'人性+1~2';
+if(id==='home')return'人性+1';return'—';}
+function isRep(id){return id==='rehearsal'||id==='home'||id==='shop';}
+
+/* ══ IMAGE MAP ══ */
+var DLG_IMG={
+prologue_1:{
+  bg:[[2,3,'seats.jpg','center 80%'],[6,8,'theater.jpg','center 45%'],[21,26,'yunnu_bg.jpg','center center']]}
+};
+
+/* ══ STATE ══ */
+var G={phase:'title',day:1,ap:3,
+stats:{aga_act:5,aga_sing:6,aga_dance:6,dragon_act:6,dragon_sing:5,dragon_dance:4,humanity:1,divinity:1,tension:1,tears:0},
+cardIdx:0,card:null,
+dlg:{key:'',script:null,nodeIdx:0,cr:null,onEnd:null,pr:null},
+int:{script:null,nodeIdx:0,cr:null,onEnd:null,active:false},
+done:{},tv:{},pendingLoc:null};
+
+/* ══ HELPERS ══ */
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function showScreen(id){['title','dlg','draw','map'].forEach(function(s){document.getElementById('scr-'+s).classList.toggle('hidden',s!==id);});}
+function showToast(m){var e=document.createElement('div');e.className='toast';e.textContent=m;document.body.appendChild(e);setTimeout(function(){if(e.parentNode)e.remove();},2800);}
+
+/* ══ RENDER ══ */
+function renderGroup(ls){
+var h='',ctx='plain',inLyrics=false,ws=false;
+for(var i=0;i<ls.length;i++){
+var t=ls[i];if(typeof t!=='string')continue;
+if(!t.trim()){ctx='plain';inLyrics=false;ws=false;continue;}
+t=t.trim();
+if(inLyrics){h+='<p class="music">'+esc(t)+'</p>';if(t.indexOf('」')>=0)inLyrics=false;continue;}
+if(ws&&t.charAt(0)==='「'){h+='<p class="music">'+esc(t)+'</p>';if(t.indexOf('」')<0)inLyrics=true;continue;}
+if(ws)ws=false;
+if(t.match(/^\[神\]/)){ctx='god';h+='<p class="god">'+esc(t.replace(/^\[神\]\s*/,''))+'</p>';continue;}
+if(t.match(/^\[旁白\]/)){ctx='narration';h+='<p class="narration">'+esc(t.replace(/^\[旁白\]\s*/,''))+'</p>';continue;}
+var sm=t.match(/^\[([^\]]+)\](.*)/);
+if(sm){ctx='dialogue';var rest=sm[2];
+if(rest.indexOf('♪')>=0){ws=true;
+if(rest.indexOf('「')>=0){var qi=rest.indexOf('「');h+='<p class="dialogue"><span class="speaker">'+esc(sm[1])+'：</span>'+esc(rest.substring(0,qi))+'<span class="music">'+esc(rest.substring(qi))+'</span></p>';if(rest.indexOf('」')<0)inLyrics=true;ws=false;}
+else{h+='<p class="dialogue"><span class="speaker">'+esc(sm[1])+'：</span>'+esc(rest)+'</p>';}}
+else{h+='<p class="dialogue"><span class="speaker">'+esc(sm[1])+'：</span>'+esc(rest)+'</p>';}continue;}
+if(t.indexOf('♪')>=0&&t.indexOf('「')>=0){h+='<p class="music">'+esc(t)+'</p>';if(t.indexOf('」')<0)inLyrics=true;continue;}
+if(t.indexOf('♪')>=0){ws=true;h+='<p class="'+ctx+'">'+esc(t)+'</p>';continue;}
+h+='<p class="'+ctx+'">'+esc(t)+'</p>';}
+return h;}
+
+function renderRewards(r){if(!r)return'';var nm={humanity:'人性',divinity:'神性',tension:'张力',act:'演技',sing:'唱功',dance:'舞技',tears:'泪'},ps=[];for(var k in r){if(r[k])ps.push((nm[k]||k)+'+'+r[k]);}return ps.length?'<p class="reward-line">✦ '+ps.join('  ')+'</p>':'';}
+function applyRew(r){if(!r)return;var ms=[],nm={humanity:'人性',divinity:'神性',tension:'张力',tears:'泪'};for(var k in r){if(!r[k])continue;if(k==='act'){G.stats.aga_act+=r[k];G.stats.dragon_act+=r[k];ms.push('演技+'+r[k]);}else if(k==='sing'){G.stats.aga_sing+=r[k];G.stats.dragon_sing+=r[k];ms.push('唱功+'+r[k]);}else if(k==='dance'){G.stats.aga_dance+=r[k];G.stats.dragon_dance+=r[k];ms.push('舞技+'+r[k]);}else if(G.stats[k]!==undefined){G.stats[k]+=r[k];ms.push((nm[k]||k)+'+'+r[k]);}}if(ms.length)showToast('✦ '+ms.join('  '));}
+
+/* ══ DLG IMAGES ══ */
+function updateDlgImg(){
+var key=G.dlg.key,idx=G.dlg.nodeIdx;
+var bgE=document.getElementById('dlg-bg'),fgE=document.getElementById('dlg-portrait');
+var cfg=key?DLG_IMG[key]:null,bgM=null,fgM=null;
+if(cfg){
+  if(cfg.bg)cfg.bg.forEach(function(r){if(idx>=r[0]&&idx<=r[1])bgM=r;});
+  if(cfg.fg)cfg.fg.forEach(function(r){if(idx>=r[0]&&idx<=r[1])fgM=r;});}
+if(bgM){var ns='url('+bgM[2]+')';
+  if(bgE.style.backgroundImage!==ns){bgE.style.backgroundImage=ns;bgE.style.backgroundPosition=bgM[3]||'center center';}
+  bgE.classList.add('show');}
+else{bgE.classList.remove('show');}
+if(fgM){if(fgE.getAttribute('data-src')!==fgM[2]){fgE.innerHTML='<img src="'+fgM[2]+'" alt="">';fgE.setAttribute('data-src',fgM[2]);}}
+else{if(fgE.innerHTML){fgE.innerHTML='';fgE.removeAttribute('data-src');}}}
+
+/* ══ DIALOGUE ══ */
+function playDlg(key,onEnd){if(!S[key]){if(onEnd)onEnd();return;}G.phase='dlg';var d=G.dlg;d.key=key;d.script=parse(S[key]);d.nodeIdx=0;d.cr=null;d.onEnd=onEnd;d.pr=null;showScreen('dlg');renderDlg();}
+function advDlg(){if(G.phase!=='dlg')return;var d=G.dlg;if(d.cr){if(d.cr.next&&S[d.cr.next]){var nk=d.cr.next,pr=d.cr.rewards;d.cr=null;d.key=nk;d.script=parse(S[nk]);d.nodeIdx=0;if(pr&&Object.keys(pr).length)d.pr=pr;renderDlg();return;}d.cr=null;d.nodeIdx++;chkDlg();return;}var n=d.script[d.nodeIdx];if(n&&n.type==='choice')return;d.nodeIdx++;chkDlg();}
+function chkDlg(){var d=G.dlg;if(d.nodeIdx>=d.script.length){if(d.pr&&Object.keys(d.pr).length){applyRew(d.pr);d.pr=null;}if(d.onEnd)d.onEnd();return;}renderDlg();}
+function selDlg(i){var d=G.dlg,n=d.script[d.nodeIdx];if(!n||n.type!=='choice')return;var o=n.options[i];if(!o)return;if(!o.next&&o.rewards&&Object.keys(o.rewards).length)applyRew(o.rewards);d.cr=o;renderDlg();}
+function renderDlg(){var d=G.dlg,body=document.getElementById('dlg-body'),ch=document.getElementById('dlg-choices'),hint=document.getElementById('dlg-hint');
+if(d.cr){var o=d.cr,dl=o.resultLines&&o.resultLines.length?o.resultLines:[o.label];body.innerHTML='<div class="dlg-content">'+renderGroup(dl)+(o.next?'':renderRewards(o.rewards))+'</div>';ch.style.display='none';hint.style.display='';updateDlgImg();return;}
+var n=d.script[d.nodeIdx];if(!n)return;
+if(n.type==='choice'){body.innerHTML='';var hh='';n.options.forEach(function(op,i){var lm=op.label.match(/^\[([^\]]+)\](.*)/);var disp=lm?'<span class="speaker">'+esc(lm[1])+'：</span>'+esc(lm[2]):esc(op.label);hh+='<button class="choice-btn" onclick="selDlg('+i+')">'+disp+'</button>';});ch.innerHTML=hh;ch.style.display='';hint.style.display='none';}
+else{body.innerHTML='<div class="dlg-content">'+renderGroup(n.lines)+'</div>';ch.style.display='none';hint.style.display='';}
+document.querySelector('.dlg-wrap').scrollTop=0;updateDlgImg();}
+
+/* ══ DRAW ══ */
+function typeColor(t){return t==='杀戮'?'#d47070':t==='纵欲'?'#b08ad4':'#70a0d4';}
+function ticketHTML(type,label,tc){
+return '<div class="card-box"><div class="card-main">'+
+'<div class="card-type" style="color:'+tc+'">'+esc(type.split('').join(' '))+'</div>'+
+'<div class="card-label">'+esc(label)+'</div>'+
+'</div><div class="card-perf"></div><div class="card-stub">票 根</div></div>';}
+function showTutDraw(){G.phase='tut-draw';showScreen('draw');document.getElementById('draw-body').innerHTML='<p class="draw-desc">云女手中的票夹微微颤动着。<br>嘎子和大龙对看一眼，将手伸了出去……</p><button class="draw-btn" onclick="revealTut()">抽 票</button>';}
+function revealTut(){G.phase='tut-rev';document.getElementById('draw-body').innerHTML='<div class="card-reveal">'+ticketHTML('杀戮','序幕试演','#d47070')+'<p style="color:#8a8070;font-size:14px;margin-top:12px">一张剧票飞出，落在他们手上。</p></div><div class="card-hint">点击继续</div>';}
+function showDraw(){G.phase='draw';showScreen('draw');document.getElementById('draw-body').innerHTML='<p class="draw-desc"><span style="color:#c9a96e;font-style:italic">云女手中的票夹微微颤动着……</span></p><button class="draw-btn" onclick="revealCard()">抽 票</button>';}
+function revealCard(){var c=CARDS[G.cardIdx],tc=typeColor(c.type);G.card={type:c.type,countdown:3};G.phase='draw-rev';document.getElementById('draw-body').innerHTML='<div class="card-reveal">'+ticketHTML(c.type,c.name,tc)+'<p style="color:#8a8070;font-size:14px;margin-top:12px">三天之内，完成这场「'+esc(c.type)+'」的演出。</p></div><div class="card-hint">点击继续</div>';}
+
+/* ══ INTERLUDE ══ */
+function playInt(key,onEnd){if(!S[key]){if(onEnd)onEnd();return;}showScreen('map');renderMap();var it=G.int;it.script=parse(S[key]);it.nodeIdx=0;it.cr=null;it.onEnd=onEnd;it.active=true;renderInt();}
+function renderInt(){var it=G.int,layer=document.getElementById('int-layer');if(!it.active){layer.innerHTML='';return;}
+if(it.cr){var dl=it.cr.resultLines&&it.cr.resultLines.length?it.cr.resultLines:[it.cr.label];layer.innerHTML='<div class="int-overlay" id="int-ov"><div class="int-wrap"><div class="int-content">'+renderGroup(dl)+renderRewards(it.cr.rewards)+'</div></div><div class="int-hint">▼ 点击继续</div></div>';return;}
+var n=it.script[it.nodeIdx];if(!n){endInt();return;}
+if(n.type==='choice'){var ch='<div class="int-choices">';n.options.forEach(function(op,i){var lm=op.label.match(/^\[([^\]]+)\](.*)/);var d=lm?'<span class="speaker">'+esc(lm[1])+'：</span>'+esc(lm[2]):esc(op.label);ch+='<button class="int-choice-btn" onclick="event.stopPropagation();selInt('+i+')">'+d+'</button>';});ch+='</div>';layer.innerHTML='<div class="int-overlay" id="int-ov"><div class="int-wrap"><div class="int-content">'+ch+'</div></div></div>';}
+else{layer.innerHTML='<div class="int-overlay" id="int-ov"><div class="int-wrap"><div class="int-content">'+renderGroup(n.lines)+'</div></div><div class="int-hint">▼ 点击继续</div></div>';}}
+function advInt(){var it=G.int;if(!it.active)return;if(it.cr){it.cr=null;it.nodeIdx++;if(it.nodeIdx>=it.script.length){endInt();return;}renderInt();return;}var n=it.script[it.nodeIdx];if(n&&n.type==='choice')return;it.nodeIdx++;if(it.nodeIdx>=it.script.length){endInt();return;}renderInt();}
+function selInt(i){var it=G.int,n=it.script[it.nodeIdx];if(!n||n.type!=='choice')return;var o=n.options[i];if(!o)return;if(o.rewards&&Object.keys(o.rewards).length)applyRew(o.rewards);it.cr=o;renderInt();}
+function endInt(){var it=G.int;it.active=false;var ov=document.getElementById('int-ov');if(ov){ov.classList.add('fade-out');setTimeout(function(){document.getElementById('int-layer').innerHTML='';if(it.onEnd)it.onEnd();},800);}else{document.getElementById('int-layer').innerHTML='';if(it.onEnd)it.onEnd();}}
+
+/* ══ MAP ══ */
+function showMap(){G.phase='map';showScreen('map');renderMap();}
+function renderMap(){var s=G.stats,h='<span class="map-day">第 '+G.day+' 天</span><span class="ap-bar">AP';
+for(var i=0;i<3;i++)h+='<span class="ap-dot'+(i<G.ap?' on':'')+'"></span>';h+='</span>';
+if(G.card)h+='<span class="ticket-badge tk-'+G.card.type+'">🎫 '+G.card.type+' · '+G.card.countdown+'天</span>';
+else h+='<span style="color:#5a5040;font-size:11px">无票</span>';
+document.getElementById('map-hdr').innerHTML=h;
+var m='';LOCS.forEach(function(loc){var cls='map-loc',off=false;
+if(loc.type==='ritual'){cls+=' ritual';if(!G.card||G.ap<loc.ap)off=true;var rk=CARDS[G.cardIdx]?CARDS[G.cardIdx].ritual:'';if(!S[rk]||G.done[rk])off=true;}
+else if(loc.type==='shop'){}
+else{if(G.ap<loc.ap)off=true;var ek=getEvtKey(loc.id);if(!ek)off=true;if(G.tv[loc.id]&&!isRep(loc.id))off=true;}
+if(off)cls+=' off';
+m+='<div class="'+cls+'" style="left:'+loc.x+'%;top:'+loc.y+'%" onclick="clickLoc(\''+loc.id+'\')"><span class="loc-icon">'+loc.icon+'</span>'+esc(loc.name)+'<span class="loc-cost">'+(loc.ap>0?loc.ap+'AP':'免费')+'</span></div>';});
+document.getElementById('map-area').innerHTML=m;
+document.getElementById('map-ftr').innerHTML='<div class="stats-row">嘎 演<span class="sv">'+s.aga_act+'</span> 唱<span class="sv">'+s.aga_sing+'</span> 跳<span class="sv">'+s.aga_dance+'</span> · 龙 演<span class="sv">'+s.dragon_act+'</span> 唱<span class="sv">'+s.dragon_sing+'</span> 跳<span class="sv">'+s.dragon_dance+'</span> · 人<span class="sv">'+s.humanity+'</span> 神<span class="sv">'+s.divinity+'</span> 张<span class="sv">'+s.tension+'</span></div><button class="btn-next" onclick="nextDay()">下一天 →</button>';}
+function clickLoc(id){if(G.int.active)return;var loc;for(var i=0;i<LOCS.length;i++){if(LOCS[i].id===id){loc=LOCS[i];break;}}if(!loc)return;
+if(loc.type==='ritual'){if(!G.card){showToast('没有剧票');return;}if(G.ap<loc.ap){showToast('行动点不足');return;}}
+else if(loc.type!=='shop'){var ek=getEvtKey(id);if(!ek){showToast('已无可探索内容');return;}if(G.ap<loc.ap){showToast('行动点不足');return;}if(G.tv[id]&&!isRep(id)){showToast('今天已来过');return;}}
+showConfirm(id);}
+function showConfirm(id){var loc;for(var i=0;i<LOCS.length;i++){if(LOCS[i].id===id){loc=LOCS[i];break;}}if(!loc)return;G.pendingLoc=id;
+var isR=loc.type==='ritual',cn=loc.name,de=loc.desc,rt=getEvtRew(id);
+if(isR&&CARDS[G.cardIdx]){cn=CARDS[G.cardIdx].name;rt='详见演出';}
+var h='<div class="confirm-mask" onclick="cancelCfm(event)"><div class="confirm-box" onclick="event.stopPropagation()"><div class="confirm-title">'+loc.icon+' '+esc(cn)+'</div><div class="confirm-desc">'+esc(de)+'</div><div class="confirm-info"><div class="ci-row"><span class="ci-label">AP消耗</span><span class="ci-val">'+loc.ap+'</span></div>';
+if(isR&&G.card)h+='<div class="ci-row"><span class="ci-label">消耗剧票</span><span class="ci-val" style="color:#c9a96e">🎫 '+esc(G.card.type)+'</span></div>';
+if(rt!=='—')h+='<div class="ci-row"><span class="ci-label">预期收获</span><span class="ci-reward">'+esc(rt)+'</span></div>';
+h+='</div><div class="confirm-acts"><button class="cbtn cbtn-cancel" onclick="cancelCfm(event)">取消</button><button class="cbtn cbtn-enter'+(isR?' gold':'')+'" onclick="doCfm()">进入</button></div></div></div>';
+document.getElementById('confirm-layer').innerHTML=h;}
+function cancelCfm(e){e.stopPropagation();document.getElementById('confirm-layer').innerHTML='';G.pendingLoc=null;}
+function doCfm(){document.getElementById('confirm-layer').innerHTML='';var id=G.pendingLoc;G.pendingLoc=null;if(!id)return;execVisit(id);}
+function execVisit(id){var loc;for(var i=0;i<LOCS.length;i++){if(LOCS[i].id===id){loc=LOCS[i];break;}}if(!loc)return;
+if(loc.type==='ritual'){G.ap-=loc.ap;var rk=CARDS[G.cardIdx].ritual;
+playDlg(rk,function(){var rw=REWARDS[rk];if(rw)applyRew(rw);G.done[rk]=true;G.card=null;G.cardIdx++;
+if(G.cardIdx<CARDS.length)showDraw();else startEnding();});return;}
+if(loc.type==='shop'){var ek=getEvtKey(id);if(ek)playDlg(ek,function(){showMap();});else showMap();return;}
+G.ap-=loc.ap;G.tv[id]=true;var ek=getEvtKey(id);if(!ek){showMap();return;}
+playDlg(ek,function(){if(ek==='EVT_E5')applyRew({humanity:1,divinity:4});if(ek==='EVT_HOME')applyRew({humanity:1});if(!isRep(id))G.done[ek]=true;showMap();});}
+function nextDay(){if(G.int.active)return;G.day++;G.ap=3;G.tv={};if(G.card){G.card.countdown--;if(G.card.countdown<=0){showGameOver();return;}}renderMap();showToast('第 '+G.day+' 天');}
+function showGameOver(){document.getElementById('overlay').innerHTML='<div class="endscreen"><h2 style="color:#d47070">幕 落</h2><p>你们未能在规定时间内完成演出。<br><br>剧场的灯光全部熄灭。<br>两个身影凝固在舞台上，<br>成为永远不会落幕的影子。<br><br><span style="color:#3a3528;cursor:pointer" onclick="location.reload()">重新开始</span></p></div>';}
+
+/* ══ ENDING ══ */
+function startEnding(){
+playDlg('ENDING_1',function(){
+var total=G.stats.humanity+G.stats.divinity;
+playDlg(total>=35?'ENDING_PASS':'ENDING_FAIL',function(){
+playDlg('ENDING_2',function(){
+var hm=G.stats.humanity,ak;
+if(hm<10)ak='ENDING_AID_H';else if(hm<15)ak='ENDING_AID_D';else ak='ENDING_AID_B';
+playDlg(ak,function(){playDlg('ENDING_3',function(){playDlg('ENDING_POST',function(){
+document.getElementById('overlay').innerHTML='<div class="endscreen"><h2>🍊</h2><p>云次方的游戏 · 完<br><br><span style="color:#3a3528;cursor:pointer" onclick="location.reload()">再来一次</span></p></div>';
+});});});});});});}
+
+/* ══ CLICK ══ */
+document.getElementById('scr-title').onclick=function(){playDlg('prologue_1',function(){showTutDraw();});};
+document.getElementById('scr-dlg').onclick=function(e){if(e.target.closest&&e.target.closest('.choice-btn'))return;advDlg();};
+document.getElementById('scr-draw').onclick=function(e){if(e.target.closest&&e.target.closest('.draw-btn'))return;
+if(G.phase==='tut-rev')playDlg('prologue_2',function(){showDraw();});
+else if(G.phase==='draw-rev'){if(!G.done._int1){G.done._int1=true;playInt('INT1',function(){G.phase='map';renderMap();});}else showMap();}};
+document.getElementById('scr-map').addEventListener('click',function(e){if(G.int.active){if(e.target.closest&&(e.target.closest('.int-choice-btn')||e.target.closest('.map-loc')||e.target.closest('.btn-next')))return;advInt();}});
+</script>
+</body>
+</html>
